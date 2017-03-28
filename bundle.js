@@ -51841,79 +51841,98 @@ Object.defineProperty(__webpack_exports__, "__esModule", { value: true });
 
 
 // http://stackoverflow.com/a/21623256/6541
-function calculateDistance(lat1, lon1, lat2, lon2) {
-  var R = 6371; // Radius of the earth in km
-  var dLat = (lat2 - lat1) * Math.PI / 180;  // deg2rad below
-  var dLon = (lon2 - lon1) * Math.PI / 180;
-  var a =
-     0.5 - Math.cos(dLat)/2 +
-     Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-     (1 - Math.cos(dLon))/2;
+const calculateDistanceInKm = function(lat1, lon1, lat2, lon2) {
+    var R = 6371; // Radius of the earth in km
+    var dLat = (lat2 - lat1) * Math.PI / 180; // deg2rad below
+    var dLon = (lon2 - lon1) * Math.PI / 180;
+    var a = 0.5 - Math.cos(dLat) / 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * (1 - Math.cos(dLon)) / 2;
+    return R * 2 * Math.asin(Math.sqrt(a));
+};
 
-  return R * 2 * Math.asin(Math.sqrt(a));
-}
+const mosaik = {
+    lat: 47.515320599999995,
+    lon: 19.0529829
+};
 
+const otthon = {
+    lat: 47.4789593,
+    lon: 19.083382999999998
+};
 
-// GET http://futar.bkk.hu/bkk-utvonaltervezo-api/ws/otp/api/where/arrivals-and-departures-for-stop.json?includeReferences=agencies,routes,trips,stops&stopId=BKK_F02650&minutesBefore=1&minutesAfter=30&key=bkk-web&version=3&appVersion=2.2.7-20170324232341 HTTP/1.1
-// Host: futar.bkk.hu
-// Connection: keep-alive
-// Pragma: no-cache
-// Cache-Control: no-cache
-// Accept: application/json, text/javascript, */*; q=0.01
-// X-Requested-With: XMLHttpRequest
-// User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/57.0.2987.98 Safari/537.36
-// Referer: http://futar.bkk.hu/?map=17/47.51508/19.04978&layers=GSVB
-// Accept-Encoding: gzip, deflate, sdch
-// Accept-Language: en-US,en;q=0.8
+// api call
+const bkkUrl = 'http://futar.bkk.hu/bkk-utvonaltervezo-api/ws/otp/api/where/arrivals-and-departures-for-stop.json?includeReferences=agencies,routes,trips,stops&minutesBefore=1&minutesAfter=30&key=bkk-web&version=3&appVersion=2.2.7-20170324232341&stopId=BKK_';
 
-const lat = 47.515320599999995;
-const lon = 19.0529829;
+// distance from x in km
+const distanceThreshold = 0.7;
 
 let distances = [];
 for (var i = 0; i < __WEBPACK_IMPORTED_MODULE_0__stops__["a" /* stops */].length; i++) {
-  var stop = __WEBPACK_IMPORTED_MODULE_0__stops__["a" /* stops */][i];
-  const distance = calculateDistance(lat, lon, stop.lat, stop.lon);
-  distances.push({
-    "id": stop.id,
-    "name": stop.name,
-    "distance": distance,
-    "parent": stop.parent
-  });
+    var stop = __WEBPACK_IMPORTED_MODULE_0__stops__["a" /* stops */][i];
+    const distance = calculateDistanceInKm(otthon.lat, otthon.lon, stop.lat, stop.lon);
+    distances.push({'id': stop.id, 'name': stop.name, 'distance': distance, 'parent': stop.parent});
 }
-const nearbyStops = distances
-  .filter(d => d.parent !== '')
-  .filter(d => d.distance < 1)
-  .sort((a, b) => a.distance - b.distance);
+
+const nearbyStops = distances.filter(d => d.parent !== '').filter(d => d.distance < distanceThreshold).sort((a, b) => a.distance - b.distance);
+console.table(nearbyStops);
+
 const grouped = __WEBPACK_IMPORTED_MODULE_1__lodash___default()(nearbyStops)
-  // .map(x => {
-  //   x.name = x.name.replace(/ \[.+?\]/g, '');
-  //   x.name = x.name.replace(/ \(.+?\)/g, '');
-  //   return x;
-  // })
-  .groupBy(x => x.parent)
-  .toArray()
-  // .sortBy((a, b) => b.length - a.length)
-  .value()
-  .sort((a, b) => b.length - a.length);
-  const largest = grouped[0];
-  // console.log(largest);
-  largest.forEach(stop => {
-    fetch(`http://futar.bkk.hu/bkk-utvonaltervezo-api/ws/otp/api/where/arrivals-and-departures-for-stop.json?includeReferences=agencies,routes,trips,stops&stopId=BKK_${stop.id}&minutesBefore=1&minutesAfter=30&key=bkk-web&version=3&appVersion=2.2.7-20170324232341`).then(res => res.json()).then(json => {
-      if (json.data.entry.stopTimes.length > 0) {
-        console.log(json);
-      }
+    .groupBy(x => x.parent)
+    .toArray()
+    .value()
+    .sort((a, b) => b.length - a.length);
+
+console.log(grouped);
+
+grouped.forEach(route => {
+    route.forEach(stop => {
+        fetch(bkkUrl + stop.id).then(res => res.json()).then(json => {
+            if (json.data.entry.stopTimes.length > 0) {
+                console.log(json);
+                processData(json);
+            } else {
+                console.log(`stop id ${stop.id} is empty`);
+            }
+        });
     });
-  });
+});
+
+const processData = function (json) {
+    const now = new Date(json.currentTime);
+//    console.log(`now: ${now}`);
+    const stopId = json.data.entry.stopId;
+    const stopName = json.data.references.stops[stopId].name;
+    const stopTimes = json.data.entry.stopTimes;
+    document.write(`<div><b>${stopName}</b>:</div>`)
+//    console.log(stopTimes);
+    stopTimes.forEach(stopTime => {
+        const departure = new Date(stopTime.arrivalTime * 1000);
+        const diff = ((stopTime.arrivalTime * 1000) - json.currentTime) / 1000 / 60;
+        if (diff < 0) return;
+        const tripId = stopTime.tripId;
+        const routeId = json.data.references.trips[tripId].routeId;
+        const tripHeadSign = json.data.references.trips[tripId].tripHeadsign;
+        const route = json.data.references.routes[routeId];
+        const vehicleName = route.shortName;
+        const backgroundColor = route.color;
+        const color = route.textColor;
+        const desc = route.description;
+        document.write(`
+            <div>
+                <span style='color: ${color}; background-color: ${backgroundColor}'>${vehicleName}</span>
+                &nbsp;towards ${tripHeadSign}
+            </div>
+            <div>leaving in ${Math.ceil(diff)} minute(s)</div>
+        `);
+    });
+};
 // console.table(nearbyStops);
 // console.log(grouped);
 
-
-
-// window.navigator.geolocation.getCurrentPosition(function(pos) {
-//   console.log(pos.coords.latitude);
-//   console.log(pos.coords.longitude);
-//
-// });
+const getLoc = false;
+getLoc && window.navigator.geolocation.getCurrentPosition(function(pos) {
+    console.log(pos.coords.latitude);
+    console.log(pos.coords.longitude);
+});
 
 
 /***/ }),
