@@ -7,26 +7,40 @@ const bkkUrl = 'http://futar.bkk.hu/bkk-utvonaltervezo-api/ws/otp/api/where/arri
 // distance from x in km
 const distanceThreshold = 0.7;
 const nearby = getNearbyStops(distanceThreshold);
-const grouped = _(nearby)
-    .groupBy(x => x.parent)
-    .toArray()
-    .value()
-    .sort((a, b) => b.length - a.length);
 
-console.log(grouped);
+console.table(nearby);
 
-grouped.forEach(route => {
-    route.forEach(stop => {
-        fetch(bkkUrl + stop.id).then(res => res.json()).then(json => {
+const groupedStops = _(nearby)
+    .groupBy(x => x.name)
+//    .toArray()
+    .value();
+//    .sort((a, b) => b.length - a.length);
+
+console.log(groupedStops);
+
+async function getDataForId(id) {
+    const response = await fetch(bkkUrl + id);
+    const data = await response.json();
+    return data;
+}
+
+for (const groupedStop in groupedStops) {
+    console.log(`processing ${groupedStop}`);
+    groupedStops[groupedStop].forEach(stop => {
+        getDataForId(stop.id).then(json => {
             if (json.data.entry.stopTimes.length > 0) {
-                console.log(json);
+                //console.log(json);
                 processData(json);
             } else {
                 console.log(`stop id ${stop.id} is empty`);
             }
         });
     });
-});
+}
+// groupedStops.forEach(group => {
+//     group
+//     });
+// });
 
 const processData = function (json) {
     // const now = new Date(json.currentTime);
