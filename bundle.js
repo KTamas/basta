@@ -51834,48 +51834,19 @@ const stops = [
 
 "use strict";
 Object.defineProperty(__webpack_exports__, "__esModule", { value: true });
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__stops__ = __webpack_require__(0);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1__lodash__ = __webpack_require__(2);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1__lodash___default = __webpack_require__.n(__WEBPACK_IMPORTED_MODULE_1__lodash__);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__lodash__ = __webpack_require__(2);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__lodash___default = __webpack_require__.n(__WEBPACK_IMPORTED_MODULE_0__lodash__);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1__helpers__ = __webpack_require__(5);
 
 
-
-// http://stackoverflow.com/a/21623256/6541
-const calculateDistanceInKm = function(lat1, lon1, lat2, lon2) {
-    var R = 6371; // Radius of the earth in km
-    var dLat = (lat2 - lat1) * Math.PI / 180; // deg2rad below
-    var dLon = (lon2 - lon1) * Math.PI / 180;
-    var a = 0.5 - Math.cos(dLat) / 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * (1 - Math.cos(dLon)) / 2;
-    return R * 2 * Math.asin(Math.sqrt(a));
-};
-
-const mosaik = {
-    lat: 47.515320599999995,
-    lon: 19.0529829
-};
-
-const otthon = {
-    lat: 47.4789593,
-    lon: 19.083382999999998
-};
 
 // api call
 const bkkUrl = 'http://futar.bkk.hu/bkk-utvonaltervezo-api/ws/otp/api/where/arrivals-and-departures-for-stop.json?includeReferences=agencies,routes,trips,stops&minutesBefore=1&minutesAfter=30&key=bkk-web&version=3&appVersion=2.2.7-20170324232341&stopId=BKK_';
 
 // distance from x in km
 const distanceThreshold = 0.7;
-
-let distances = [];
-for (var i = 0; i < __WEBPACK_IMPORTED_MODULE_0__stops__["a" /* stops */].length; i++) {
-    var stop = __WEBPACK_IMPORTED_MODULE_0__stops__["a" /* stops */][i];
-    const distance = calculateDistanceInKm(otthon.lat, otthon.lon, stop.lat, stop.lon);
-    distances.push({'id': stop.id, 'name': stop.name, 'distance': distance, 'parent': stop.parent});
-}
-
-const nearbyStops = distances.filter(d => d.parent !== '').filter(d => d.distance < distanceThreshold).sort((a, b) => a.distance - b.distance);
-console.table(nearbyStops);
-
-const grouped = __WEBPACK_IMPORTED_MODULE_1__lodash___default()(nearbyStops)
+const nearby = __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_1__helpers__["a" /* getNearbyStops */])(distanceThreshold);
+const grouped = __WEBPACK_IMPORTED_MODULE_0__lodash___default()(nearby)
     .groupBy(x => x.parent)
     .toArray()
     .value()
@@ -51897,15 +51868,15 @@ grouped.forEach(route => {
 });
 
 const processData = function (json) {
-    const now = new Date(json.currentTime);
+    // const now = new Date(json.currentTime);
 //    console.log(`now: ${now}`);
     const stopId = json.data.entry.stopId;
     const stopName = json.data.references.stops[stopId].name;
     const stopTimes = json.data.entry.stopTimes;
-    document.write(`<div><b>${stopName}</b>:</div>`)
+    document.write(`<div><b>${stopName}</b>:</div>`);
 //    console.log(stopTimes);
     stopTimes.forEach(stopTime => {
-        const departure = new Date(stopTime.arrivalTime * 1000);
+        // const departure = new Date(stopTime.arrivalTime * 1000);
         const diff = ((stopTime.arrivalTime * 1000) - json.currentTime) / 1000 / 60;
         if (diff < 0) return;
         const tripId = stopTime.tripId;
@@ -51915,7 +51886,7 @@ const processData = function (json) {
         const vehicleName = route.shortName;
         const backgroundColor = route.color;
         const color = route.textColor;
-        const desc = route.description;
+        // const desc = route.description;
         document.write(`
             <div>
                 <span style='color: ${color}; background-color: ${backgroundColor}'>${vehicleName}</span>
@@ -69080,6 +69051,62 @@ module.exports = function(module) {
 	}
 	return module;
 };
+
+
+/***/ }),
+/* 5 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__stops__ = __webpack_require__(0);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1__mockLocations__ = __webpack_require__(6);
+
+
+
+// http://stackoverflow.com/a/21623256/6541
+const calculateDistanceInKm = function (lat1, lon1, lat2, lon2) {
+    var R = 6371; // Radius of the earth in km
+    var dLat = (lat2 - lat1) * Math.PI / 180; // deg2rad below
+    var dLon = (lon2 - lon1) * Math.PI / 180;
+    var a = 0.5 - Math.cos(dLat) / 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * (1 - Math.cos(dLon)) / 2;
+    return R * 2 * Math.asin(Math.sqrt(a));
+};
+
+const getDistancesFromStops = function (stops) {
+    let distances = [];
+    stops.forEach(stop => {
+        const distance = calculateDistanceInKm(__WEBPACK_IMPORTED_MODULE_1__mockLocations__["a" /* otthon */].lat, __WEBPACK_IMPORTED_MODULE_1__mockLocations__["a" /* otthon */].lon, stop.lat, stop.lon);
+        distances.push({'id': stop.id, 'name': stop.name, 'distance': distance, 'parent': stop.parent});
+    });
+    return distances;
+};
+
+const getNearbyStops = distanceThreshold => {
+    const distances = getDistancesFromStops(__WEBPACK_IMPORTED_MODULE_0__stops__["a" /* stops */]);
+    return distances.filter(d => d.parent !== '').filter(d => d.distance < distanceThreshold).sort((a, b) => a.distance - b.distance);
+};
+/* harmony export (immutable) */ __webpack_exports__["a"] = getNearbyStops;
+
+
+
+/***/ }),
+/* 6 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+const mosaik = {
+    lat: 47.515320599999995,
+    lon: 19.0529829
+};
+/* unused harmony export mosaik */
+
+
+const otthon = {
+    lat: 47.4789593,
+    lon: 19.083382999999998
+};
+/* harmony export (immutable) */ __webpack_exports__["a"] = otthon;
+
 
 
 /***/ })
